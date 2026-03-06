@@ -1,0 +1,17 @@
+[client]
+showErrorDetails = true
+
+[logger]
+level = "info"
+
+[runner]
+fastReruns = false
+
+[server]
+port = 8501
+enableCORS = false
+enableXsrfProtection = true
+
+[browser]
+gatherUsageStats = false
+serverAddress = "localhost"
