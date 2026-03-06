@@ -53,7 +53,7 @@ import streamlit as st
 # ==========================================
 
 def load_data(file):
-    """加载数据并提取数值列"""
+    """加载数据并返回DataFrame和数值列信息"""
     if file.name.endswith('.csv'):
         df = pd.read_csv(file)
     elif file.name.endswith(('.xlsx', '.xls')):
@@ -75,9 +75,7 @@ def load_data(file):
     if len(numeric_cols) == 0:
         raise ValueError("文件中未找到数值列")
     
-    # 取第一个数值列
-    data_series = df[numeric_cols[0]].dropna().reset_index(drop=True)
-    return data_series
+    return df, numeric_cols
 
 def detect_outliers(series, method='zscore', threshold=3):
     """异常值检测"""
@@ -474,6 +472,7 @@ st.title("📊 高级时间序列预测平台")
 st.markdown("""
 **功能特点：**
 - 📂 **本地上传**：支持 CSV, Excel, TXT。
+- 🔢 **多列支持**：支持多列数据文件，可选择任意数值列进行预测。
 - 🎚️ **完全自由**：训练集可从任意位置截取，长度可设为任意正整数。
 - 🤖 **多模型融合**：XGBoost, LSTM, Prophet, ARIMA, LightGBM。
 - 📉 **智能适配**：自动根据数据量调整模型参数。
@@ -486,11 +485,34 @@ uploaded_file = st.file_uploader("1. 上传数据文件", type=['csv', 'xlsx', '
 
 if uploaded_file:
     try:
-        data_series = load_data(uploaded_file)
+        df, numeric_cols = load_data(uploaded_file)
+        
+        # 显示数据预览
+        with st.expander("📋 查看数据预览"):
+            st.dataframe(df.head(20))
+            st.write(f"数据形状: {df.shape}")
+            st.write(f"数值列: {list(numeric_cols)}")
+        
+        # 列选择功能
+        if len(numeric_cols) > 1:
+            st.subheader("🔢 选择数据列")
+            selected_col = st.selectbox(
+                "选择要用于预测的数值列",
+                options=numeric_cols,
+                help="从文件的多个数值列中选择一列进行时间序列预测"
+            )
+            st.info(f"已选择列: **{selected_col}**")
+        else:
+            selected_col = numeric_cols[0]
+            st.info(f"文件中只有一个数值列: **{selected_col}**")
+        
+        # 提取选择的数据列
+        data_series = df[selected_col].dropna().reset_index(drop=True)
         total_len = len(data_series)
         st.success(f"✅ 数据加载成功！共 **{total_len}** 条记录。")
         
         # 异常值检测
+        st.divider()
         outlier_method = st.selectbox("选择异常值检测方法", ["无", "Z-Score", "IQR"])
         if outlier_method != "无":
             outliers = detect_outliers(data_series, method=outlier_method.lower())
@@ -504,11 +526,11 @@ if uploaded_file:
             else:
                 st.info("✅ 未检测到异常值")
         
-        # 显示前几行
-        with st.expander("查看数据预览"):
-            st.dataframe(data_series.head())
-            st.line_chart(data_series)
-
+        # 显示选择列的数据图表
+        st.divider()
+        st.subheader("📈 数据可视化")
+        st.line_chart(data_series)
+        
         st.divider()
         st.subheader("2. 参数设置")
         
